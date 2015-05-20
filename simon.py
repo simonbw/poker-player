@@ -6,5 +6,5 @@ class Simon(Player):
         Simon.agent_count += 1
         self.name = 'Simon' + str(Simon.agent_count)
 
-    def bet(self, game_view, minimum):
-        return minimum + 1
+    def bet(self, game_view, minimum_bet, minimum_raise):
+        return min(minimum_bet + minimum_raise, game_view.chips[self])

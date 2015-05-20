@@ -1,4 +1,5 @@
 import random
+from copy import copy
 from card import Card
 from deck import Deck
 from evaluator import Evaluator
@@ -6,13 +7,14 @@ from evaluator import Evaluator
 evaluator = Evaluator()
 
 class Game:
-    """"""
+    """Describes one game of No-Limit Texas Hold'em"""
 
     def __init__(self, players):
         """"""
 
         self.players = players
         print("New Game:", ', '.join([player.name for player in players]), "\n\n")
+
 
         self.big_blind = 2
         self.little_blind = 1
@@ -25,6 +27,7 @@ class Game:
         """"""
 
         while True: # game not over
+            self.reset_table()
             self.play_hand()
 
     def play_hand(self):
@@ -33,31 +36,116 @@ class Game:
         print("New Hand")
         print("Betting Order:", ", ".join([player.name for player in self.players]))
 
-        # Reset stuff
-        self.pot = 0
-        self.folded = set()
-        self.money_for_pot = {player: 0 for player in self.players}
-        self.community_cards = []
-
+        # Reset table information
+        self.reset_table()
+        
         # TODO: Don't ask for bets when the hand should be over
 
         # Do the stuff
         self.deck = Deck()
         self.deal()
-        self.round_of_betting(True)
-        self.reveal(3) # flop
-        self.round_of_betting()
-        self.reveal(1) # turn
-        self.round_of_betting()
-        self.reveal(1) # river
-        self.round_of_betting()
+        for i in (3, 1, 1): # flop, turn, river reveal numbers
+            self.round_of_betting(i == 3)
+            self.reveal(i)
+
+            # Stop asking for bets if all but one player has folded
+            if len(self.players_in_hand) == 1:
+                break
         self.payout()
         self.rotate_players()
         print()
 
+
+    def round_of_betting(self, antes=False):
+        """"""
+        # NOTE: self.chips[player] is updated immediately after bets are validated.
+        # No misdeals here...
+        print("New Round Of Betting")
+
+        if antes:
+            self.antes()
+            largest_bet = self.big_blind
+            minimum_raise = self.big_blind
+        else:
+            largest_bet = 0 # minimum amount required to stay in
+            minimum_raise = 0
+
+
+        round_not_over = True
+        players_left_to_act = self.players_in_hand
+        while round_not_over:
+            
+            previous_money_for_pot = copy(self.money_for_pot)
+
+            round_not_over = False
+            for player in self.players_in_hand:
+                amount_to_stay_in = largest_bet - self.money_for_pot[player]
+
+                # Prompt player for the bet
+                bet = player.bet(GameView(self, player), amount_to_stay_in, minimum_raise)
+                print(self.chips[player])
+
+                # Validate the bet
+                if bet < amount_to_stay_in:
+                    if bet == self.chips[player]: # valid if all in
+                        pass # ok
+                    else: # didn't bet enough
+                        raise Exception("Bad Bet: Too small")
+                if bet > self.chips[player]:
+                    raise Exception("Bad Bet: That's more than you have!")
+
+                # Execute the bet
+                if bet is None:                                     # Fold
+                    self.folded.add(player)
+                    self.players_in_hand.remove(player)
+                    print(player.name, 'has folded')
+                elif bet == 0:                                      # Check
+                    print(player.name, 'checks')
+                elif bet > amount_to_stay_in:                       # Raise
+                    round_not_over = True
+                    raise_amount = bet - amount_to_stay_in
+                    self.players_left_to_act = self.players_in_hand
+                    print(player.name, 'has raised', raise_amount)
+                elif bet == amount_to_stay_in:                      # Call
+                    print(player.name, 'has called for', bet)
+                self.players_left_to_act.remove(player)
+
+                # Adjust chip totals
+                self.money_for_pot[player] += bet
+                self.chips[player] -= bet
+                print(self.chips[player])
+
+                """
+                This will probably be a branch
+                Why have an update method? I still want to know what's happening when I fold...
+                # Update the table
+                    for player in self.players:
+                        player.update(--Some update information--)
+                """     
+
+                largest_bet = max(largest_bet, bet)
+
+            round_not_over = not (previous_money_for_pot == self.money_for_pot and len(players_left_to_act) == 0)
+
+        # put all bets in pot
+        for player in self.players:
+            self.pot += self.money_for_pot[player]
+            self.money_for_pot[player] = 0
+
+
+    def reset_table(self):
+        """Resets the table for a new hand"""
+
+        self.pot = 0
+        self.folded = set()
+        self.money_for_pot = {player: 0 for player in self.players}
+        self.community_cards = []
+        self.players_in_hand = copy(self.players)
+
+
     def antes(self):
         """"""
-        self.money_for_pot
+
 
     def deal(self):
         """"""
@@ -68,58 +156,13 @@ class Game:
             print("  ", player.name, [Card.int_to_str(card) for card in self.hole_cards[player]])
         print()
 
+
     def reveal(self, n_cards):
         """"""
         for i in range(n_cards):
             self.community_cards.append(self.deck.draw())
         print('community_cards:', [Card.int_to_str(card) for card in self.community_cards], "\n")
 
-    def round_of_betting(self, antes=False):
-        """"""
-        print("New Round Of Betting")
-
-        if antes:
-            self.antes()
-            largest_bet = self.big_blind
-        else:
-            largest_bet = 0 # minimum amount required to stay in
-
-        raised = True
-        while raised:
-            if random.random() < 0.001:
-                break
-            
-            raised = False
-            for player in self.players:
-                # Skip players who have folded
-                if player in self.folded:
-                    continue
-
-                amount_to_stay_in = largest_bet - self.money_for_pot[player]
-                bet = player.bet(GameView(self, player), amount_to_stay_in)
-
-                if bet is None: # Fold
-                    self.folded.add(player)
-                    print(player.name, 'folded')
-                    continue
-                elif bet < amount_to_stay_in:
-                    if bet + self.money_for_pot[player] == self.chips[player]: # valid if all in
-                        pass # ok
-                    else: # didn't bet enough
-                        raise Exception("Bad Bet: Too small")
-                else: # call / check
-                    # TODO: Validity checks
-                    if bet > amount_to_stay_in:
-                        raised = True
-                    self.money_for_pot[player] += bet
-
-                largest_bet = max(largest_bet, bet)
-                print(player.name, 'bet', bet, "\n")
-
-        # put all bets in pot
-        for player in self.players:
-            self.pot += self.money_for_pot[player]
-            self.money_for_pot[player] = 0
 
     def payout(self):
         """Find winner and give out pot."""
@@ -151,29 +194,9 @@ class GameView:
         self.community_cards = game_state.community_cards[:]
         self.pot = game_state.pot
         # TODO: Security
-        self.chips = game_state.chips
+        self.chips = copy(game_state.chips)
         self.players = game_state.players
         self.money_for_pot = game_state.money_for_pot
-
-# 
-class Player:
-    player_count = 0
-    def __init__(self):
-        Player.player_count += 1
-        self.name = 'Player' + str(Player.player_count)
-
-    def bet(self, game_view, minimum):
-        return minimum
-
-
-class Simon(Player):
-    agent_count = 0
-    def __init__(self):
-        Simon.agent_count += 1
-        self.name = 'Simon' + str(Simon.agent_count)
-
-    def bet(self, game_view, minimum):
-        return minimum + 1
 
 
 
