@@ -7,14 +7,14 @@ from evaluator import Evaluator
 evaluator = Evaluator()
 
 class Game:
-    """Describes one game of No-Limit Texas Hold'em"""
+    """Describes one game of No-Limit Texas Hold'em as a single table tournament"""
 
     def __init__(self, players):
         """"""
 
         self.players = players
+        self.busted_players = []
         print("New Game:", ', '.join([player.name for player in players]), "\n\n")
-
 
         self.big_blind = 2
         self.little_blind = 1
@@ -26,9 +26,26 @@ class Game:
     def play(self):
         """"""
 
-        while True: # game not over
+        while len(self.players) > 1: # game not over
             self.reset_table()
             self.play_hand()
+            for player in self.players:
+                if self.chips[player] == 0:
+                    print(player.name, 'has gone bust!')
+                    self.busted_players.append(player)
+                    self.players.remove(player)
+                else:
+                    print(player.name, 'has', self.chips[player], 'chips')
+
+
+        print('The game has concluded.')
+        for player in self.players:
+            print(player.name, 'is the victor!')
+
+        print('These players are ranked from 2nd to last:\n')
+        for player in reversed(self.busted_players):
+            print(player.name)
+
 
     def play_hand(self):
         """Play 1 hand of the game."""
@@ -45,8 +62,16 @@ class Game:
         self.deck = Deck()
         self.deal()
         for i in (3, 1, 1): # flop, turn, river reveal numbers
-            self.round_of_betting(i == 3)
+            # Detect if all players are all in.
+            players_all_in = True
+            for player in self.players_in_hand:
+                if self.chips[player] != 0:
+                    players_all_in = False
+            if not players_all_in:
+                self.round_of_betting(i == 3)
             self.reveal(i)
+
+            # TODO: Add split pot detection?
 
             # Stop asking for bets if all but one player has folded
             if len(self.players_in_hand) == 1:
@@ -72,10 +97,8 @@ class Game:
 
 
         round_not_over = True
-        players_left_to_act = self.players_in_hand
+        players_left_to_act = copy(self.players_in_hand)
         while round_not_over:
-            
-            previous_money_for_pot = copy(self.money_for_pot)
 
             round_not_over = False
             for player in self.players_in_hand:
@@ -83,7 +106,6 @@ class Game:
 
                 # Prompt player for the bet
                 bet = player.bet(GameView(self, player), amount_to_stay_in, minimum_raise)
-                print(self.chips[player])
 
                 # Validate the bet
                 if bet < amount_to_stay_in:
@@ -104,28 +126,30 @@ class Game:
                 elif bet > amount_to_stay_in:                       # Raise
                     round_not_over = True
                     raise_amount = bet - amount_to_stay_in
-                    self.players_left_to_act = self.players_in_hand
+                    players_left_to_act = copy(self.players_in_hand)
                     print(player.name, 'has raised', raise_amount)
                 elif bet == amount_to_stay_in:                      # Call
                     print(player.name, 'has called for', bet)
-                self.players_left_to_act.remove(player)
+                players_left_to_act.remove(player)
 
                 # Adjust chip totals
                 self.money_for_pot[player] += bet
                 self.chips[player] -= bet
-                print(self.chips[player])
+                print(player.name, 'has', self.chips[player], 'chips left.')
 
                 """
-                This will probably be a branch
-                Why have an update method? I still want to know what's happening when I fold...
                 # Update the table
                     for player in self.players:
                         player.update(--Some update information--)
+                This will probably be a branch
+                Why have an update method? I still want to know what's happening when I fold...
                 """     
 
                 largest_bet = max(largest_bet, bet)
+                if len(players_left_to_act) == 0:
+                    break
 
-            round_not_over = not (previous_money_for_pot == self.money_for_pot and len(players_left_to_act) == 0)
+            round_not_over = not len(players_left_to_act) == 0
 
         # put all bets in pot
         for player in self.players:
@@ -177,7 +201,8 @@ class Game:
                 best_score = score
 
             print(player.name, score, evaluator.class_to_string(evaluator.get_rank_class(score)))
-        print(best_player.name, 'won pot of', self.pot)
+        self.chips[best_player] += self.pot
+        print(best_player.name, 'won pot of', self.pot, 'chips.')
 
 
     def rotate_players(self):
@@ -199,11 +224,10 @@ class GameView:
         self.money_for_pot = game_state.money_for_pot
 
 
-
 if __name__ == '__main__':
     from simon import Simon
     from john import John
     players = [Simon(), John()]
     game = Game(players)
 
-    game.play_hand()
+    game.play()

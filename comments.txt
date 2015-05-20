@@ -1,4 +1,4 @@
 General comments about certain aspects or pointing to sections in code
 
-Line 119 in poker.py:
+Line 134 in poker.py:
 	I think this is a good reason that an update() method makes some sense.
