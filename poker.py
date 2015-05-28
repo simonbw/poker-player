@@ -11,7 +11,7 @@ class Game:
 
     def __init__(self, players):
         """"""
-
+        
         self.players = players
         self.busted_players = []
         print("New Game:", ', '.join([player.name for player in players]), "\n\n")
@@ -84,7 +84,6 @@ class Game:
     def round_of_betting(self, antes=False):
         """"""
         # NOTE: self.chips[player] is updated immediately after bets are validated.
-        # No misdeals here...
         print("New Round Of Betting")
 
         if antes:
@@ -141,8 +140,6 @@ class Game:
                 # Update the table
                     for player in self.players:
                         player.update(--Some update information--)
-                This will probably be a branch
-                Why have an update method? I still want to know what's happening when I fold...
                 """     
 
                 largest_bet = max(largest_bet, bet)
