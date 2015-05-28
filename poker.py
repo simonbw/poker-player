@@ -24,7 +24,7 @@ class Game:
             self.chips[player] = 100
 
     def play(self):
-        """"""
+        """Simulate an entire game of poker, playing hands until only one player has any chips left."""
 
         while len(self.players) > 1: # game not over
             self.reset_table()
@@ -48,7 +48,7 @@ class Game:
 
 
     def play_hand(self):
-        """Play 1 hand of the game."""
+        """Play one hand of the game."""
 
         print("New Hand")
         print("Betting Order:", ", ".join([player.name for player in self.players]))
@@ -82,7 +82,7 @@ class Game:
 
 
     def round_of_betting(self, antes=False):
-        """"""
+        """Ask for bets from each player."""
         # NOTE: self.chips[player] is updated immediately after bets are validated.
         print("New Round Of Betting")
 
@@ -94,7 +94,7 @@ class Game:
             largest_bet = 0 # minimum amount required to stay in
             minimum_raise = 0
 
-
+        # TODO: Ask for betting in the right order.
         round_not_over = True
         players_left_to_act = copy(self.players_in_hand)
         while round_not_over:
@@ -165,7 +165,9 @@ class Game:
 
 
     def antes(self):
-        """"""
+        """Apply the big and little blinds."""
+        # TODO: make sure this doesn't make people go negative somehow
+        self.players[0]
 
 
     def deal(self):
@@ -179,7 +181,7 @@ class Game:
 
 
     def reveal(self, n_cards):
-        """"""
+        """Reveals a n_cards from the deck and place them in the common cards."""
         for i in range(n_cards):
             self.community_cards.append(self.deck.draw())
         print('community_cards:', [Card.int_to_str(card) for card in self.community_cards], "\n")
@@ -203,13 +205,14 @@ class Game:
 
 
     def rotate_players(self):
-        self.players.insert(0, self.players.pop())
+        """Change the list of players so the """
+        self.players.append(self.players.pop(0))
 
 
 
 # What is passed to a player on their turn
 class GameView:
-    """"""
+    """The data that is passed to an agent."""
     def __init__(self, game_state, player):
         self.hole_cards = game_state.hole_cards[player][:]
 
@@ -219,6 +222,7 @@ class GameView:
         self.chips = copy(game_state.chips)
         self.players = game_state.players
         self.money_for_pot = game_state.money_for_pot
+
 
 
 if __name__ == '__main__':
