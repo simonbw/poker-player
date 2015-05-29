@@ -264,7 +264,9 @@ class GameView:
         self.pots = game_state.pots
         # TODO: Security
         self.chips = copy(game_state.chips)
-        self.active_players = game_state.players
+        self.active_players = game_state.active_players
+        self.players_in_hand = game_state.players_in_hand
+        self.players_folded = list(filter(lambda player: player not in game_state.players_in_hand, game_state.active_players))
         self.money_for_pot = game_state.money_for_pot
 
 
