@@ -63,7 +63,7 @@ class Game:
 
             if len(self.players) == len(self.folded_players) + 1:
                 break  # go to payout
-        remaining_players = list(filter(lambda player: player not in self.folded_players, self.players))
+        remaining_players = set(self.players) - self.folded_players
         self.payout(remaining_players, self.pots[0])
         self.rotate_players()
         print()
@@ -270,12 +270,13 @@ class GameView:
         # TODO: Security
         self.chips = game_state.chips
         self.players = game_state.players
-        self.players_in_hand = list(filter(lambda player: player not in game_state.folded_players, game_state.players))
+        self.players_in_hand = list(set(game_state.players) - game_state.folded_players)
         self.folded_players = game_state.folded_players
         self.money_for_pot = game_state.money_for_pot
         self.amount_to_stay_in = amount_to_stay_in
         self.minimum_bet = amount_to_stay_in
         self.minimum_raise = minimum_raise
+        self.my_chips = game_state.chips[player]
 
 
 if __name__ == '__main__':
@@ -283,7 +284,8 @@ if __name__ == '__main__':
     from john import John
     from callingstation import CallingStation
     from folder import Folder
-    players = [CallingStation(), CallingStation(), CallingStation(), CallingStation(), Folder()]
+    from bluffer import Bluffer
+    players = [Bluffer(), CallingStation(), CallingStation(), CallingStation(), Folder()]
     game = Game(players)
 
     game.play()
