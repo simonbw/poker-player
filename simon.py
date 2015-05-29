@@ -15,7 +15,7 @@ class Simon(Player):
         Simon.agent_count += 1
         self.name = 'Simon' + str(Simon.agent_count)
 
-    def bet(self, game_view, minimum_bet, minimum_raise):
+    def bet(self, game_view):
         score = 0
 
         opponent_score = self.estimate_opponent_score(game_view)
@@ -27,7 +27,7 @@ class Simon(Player):
         # TODO: Bluff
 
         if my_win_chance > 0.5:
-            return min(minimum_bet + minimum_raise, game_view.chips[self])
+            return min(game_view.minimum_bet + game_view.minimum_raise, game_view.chips[self])
         else:
             return None
 
@@ -60,7 +60,7 @@ class Simon(Player):
         wins = 0
         deck = self.get_remaining_deck(hole_cards + community_cards)
         for cards in combinations(deck, 2):
-            score = evaluator.evaluate(hole_cards, community_cards + cards)
+            score = evaluator.evaluate(hole_cards, community_cards + list(cards))
             if score < opponent_score:
                 wins += 1
             elif score == opponent_score:

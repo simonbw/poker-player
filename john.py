@@ -3,6 +3,7 @@ from evaluator import Evaluator
 
 class John(Player):
     agent_count = 0
+
     def __init__(self):
         John.agent_count += 1
         self.name = 'John' + str(John.agent_count)
