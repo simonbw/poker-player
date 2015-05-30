@@ -7,7 +7,7 @@ class Event():
 	END_ROUND_OF_BETTING = 4
 	END_HAND = 5
 
-	# Action Types:
+	# Player Action Types:
 	CHECK = 0
 	FOLD = 1
 	RAISE = 2
