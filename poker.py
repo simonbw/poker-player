@@ -159,6 +159,11 @@ class Game:
 
             self.validate_bet_amount(player, bet, amount_to_stay_in, minimum_raise)
 
+            # Adjust chip totals
+            self.money_for_pot[player] += bet
+            self.chips[player] -= bet
+            print(player.name, 'has', self.chips[player], 'chips left.')
+
             if bet == 0:    
                 for p in self.players:
                     if p is not player:
@@ -180,13 +185,6 @@ class Game:
                     if p is not player:
                         p.on_bet(player.name, "call", bet, GameView(self, player))
                 print(player.name, 'has called for', bet)
-
-            # Adjust chip totals
-            self.money_for_pot[player] += bet
-            self.chips[player] -= bet
-            print(player.name, 'has', self.chips[player], 'chips left.')
-
-            # TODO: Update each player
 
             print('The largest bet is currently', largest_bet)
 
