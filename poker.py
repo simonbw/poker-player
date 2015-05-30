@@ -21,12 +21,16 @@ class Game:
         self.little_blind = 1
         self.pots = [0]
         self.odd_chips = 0
+        self.hole_cards = {}
         self.deck = Deck()
 
         # Starting chips for each player
         self.chips = {}
         for player in players:
             self.chips[player] = 100
+
+        for player in self.players:
+            player.on_new_game([p.name for p in self.players])
 
         print("New game created with the following players:\n ",
               ', '.join([player.name for player in players]), "\n")
@@ -56,6 +60,8 @@ class Game:
 
         print("New Hand")
         self.deal()
+        for player in self.players:
+            player.on_new_hand(GameView(self, player))
         for i in (3, 1, 1, 0):  # flop, turn, river reveal number
             if self.enough_players_have_chips():
                 self.round_of_betting(i == 3)
@@ -105,6 +111,9 @@ class Game:
         """Ask for bets from each player."""
         print("New Round Of Betting")
 
+        for player in self.players:
+            player.on_new_round(GameView(self, player))
+
         if first_round:
             self.antes()
             largest_bet = self.big_blind
@@ -140,13 +149,20 @@ class Game:
 
             # Detect folding
             if bet is None:
+                # notify other players
+                for p in self.players:
+                    if p is not player:
+                        p.on_bet(player.name, "fold", None, GameView(self, player))
                 self.folded_players.add(player)
                 print(player.name, 'has folded with', self.chips[player], 'chips left.')
                 continue  # go to next player
 
             self.validate_bet_amount(player, bet, amount_to_stay_in, minimum_raise)
 
-            if bet == 0:                                        # Check
+            if bet == 0:    
+                for p in self.players:
+                    if p is not player:
+                        p.on_bet(player.name, "check", 0, GameView(self, player))                                    # Check
                 print(player.name, 'checks')
             elif bet > amount_to_stay_in:                       # Raise
                 raise_amount = bet - amount_to_stay_in
@@ -155,8 +171,14 @@ class Game:
                 if bet >= minimum_raise / 2:
                     last_aggressor = player
                 largest_bet = self.money_for_pot[player] + bet
+                for p in self.players:
+                    if p is not player:
+                        p.on_bet(player.name, "raise", raise_amount, GameView(self, player))
                 print(player.name, 'has raised', raise_amount)
             elif bet == amount_to_stay_in:                      # Call
+                for p in self.players:
+                    if p is not player:
+                        p.on_bet(player.name, "call", bet, GameView(self, player))
                 print(player.name, 'has called for', bet)
 
             # Adjust chip totals
@@ -263,7 +285,7 @@ class Game:
 # What is passed to a player on their turn
 class GameView:
     """The data that is passed to an agent."""
-    def __init__(self, game_state, player, amount_to_stay_in, minimum_raise):
+    def __init__(self, game_state, player, amount_to_stay_in=None, minimum_raise=None):
         self.hole_cards = game_state.hole_cards[player][:]
 
         self.community_cards = game_state.community_cards[:]
