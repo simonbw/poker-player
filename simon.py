@@ -27,7 +27,7 @@ class Simon(Player):
         # TODO: Bluff
 
         if my_win_chance > 0.5:
-            return min(game_view.minimum_bet + game_view.minimum_raise, game_view.chips[self])
+            return min(game_view.minimum_bet + game_view.minimum_raise, game_view.chips[self.name])
         else:
             return None
 
