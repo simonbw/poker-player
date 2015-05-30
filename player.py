@@ -7,7 +7,7 @@ class Player:
         Player.player_count += 1
         self.name = self.__class__.__name__ + str(Player.player_count)
 
-    def bet(self, game_view, minimum_bet, minimum_raise):
+    def bet(self, game_view):
     	"""
         Called when asking how much a player would like to bet.
         Returning None folds.
