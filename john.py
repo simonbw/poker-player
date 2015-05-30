@@ -44,4 +44,5 @@ class Villain():
         self.vpip = 0
 
     def update(action, amount, game_view):
+        return
         
