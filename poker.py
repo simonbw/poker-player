@@ -121,7 +121,6 @@ class Game:
 
         for player in cycle(self.players):
             if first_round and largest_bet == self.big_blind and player is self.players[-1]:
-                print('Current player is Big Blind')
                 last_aggressor = self.players[2 % len(self.players)]
             if len(self.folded_players) + 1 == len(self.players) or player is last_aggressor:
                 break
@@ -151,7 +150,8 @@ class Game:
                 print(player.name, 'checks')
             elif bet > amount_to_stay_in:                       # Raise
                 raise_amount = bet - amount_to_stay_in
-                last_aggressor = player
+                if bet >= minimum_raise / 2:
+                    last_aggressor = player
                 largest_bet = self.money_for_pot[player] + bet
                 print(player.name, 'has raised', raise_amount)
             elif bet == amount_to_stay_in:                      # Call
@@ -210,17 +210,16 @@ class Game:
         print()
 
     def validate_bet_amount(self, player, bet, amount_to_stay_in, minimum_raise):
-        if bet < amount_to_stay_in:
-            if bet == self.chips[player]: # valid if all in
-                pass # ok
-            else: # didn't bet enough
+        
+        if bet != self.chips[player]:
+            if bet < amount_to_stay_in:
                 raise Exception("Bad Bet: Too small")
-        # More chips than possible
-        if bet > self.chips[player]:
-            raise Exception("Bad Bet: That's more than you have!\nYou tried to bet:", bet)
-        # Didn't raise enough
-        if amount_to_stay_in < bet < amount_to_stay_in + minimum_raise:
-            raise Exception("Bad Bet: Minimum raise is", minimum_raise)
+            # More chips than possible
+            if bet > self.chips[player]:
+                raise Exception("Bad Bet: That's more than you have!\nYou tried to bet:", bet)
+            # Didn't raise enough
+            if amount_to_stay_in < bet < amount_to_stay_in + minimum_raise:
+                raise Exception("Bad Bet: Minimum raise is", minimum_raise, "Tried to bet", bet)
 
     def reveal(self, n_cards):
         """Reveals a n_cards from the deck and place them in the common cards."""
@@ -267,16 +266,16 @@ class GameView:
 
         self.community_cards = game_state.community_cards[:]
         self.pots = game_state.pots
-        # TODO: Security
-        self.chips = game_state.chips
-        self.players = game_state.players
-        self.players_in_hand = list(set(game_state.players) - game_state.folded_players)
-        self.folded_players = game_state.folded_players
-        self.money_for_pot = game_state.money_for_pot
+        self.my_chips = game_state.chips[player]
         self.amount_to_stay_in = amount_to_stay_in
         self.minimum_bet = amount_to_stay_in
+        self.chips = {player.name: game_state.chips[player] for player in list(game_state.chips.keys())}
+        self.players = [player.name for player in game_state.players]
+        players_in_hand = list(set(game_state.players) - game_state.folded_players)
+        self.players_in_hand = [player.name for player in players_in_hand]
+        self.folded_players = [player.name for player in game_state.folded_players]
+        self.money_for_pot = {player.name: game_state.money_for_pot[player] for player in list(game_state.money_for_pot.keys())}
         self.minimum_raise = minimum_raise
-        self.my_chips = game_state.chips[player]
 
 
 if __name__ == '__main__':

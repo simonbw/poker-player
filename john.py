@@ -10,7 +10,7 @@ class John(Player):
         evaluator = Evaluator()
 
     def bet(self, game_view, minimum_bet, minimum_raise):
-        return game_view.chips[self]
+        return game_view.chips[self.name]
 
     def update(self, game_view):
 
