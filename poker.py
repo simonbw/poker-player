@@ -150,8 +150,11 @@ class Game:
                 print(player.name, 'checks')
             elif bet > amount_to_stay_in:                       # Raise
                 raise_amount = bet - amount_to_stay_in
+<<<<<<< HEAD
                 # Only reopen betting if the raise is sufficiently large
                 #   (matters when someone raises less than min_raise by going all-in)
+=======
+>>>>>>> adef18cf0707184e29e32fb92ba4a86eb5b3b5d3
                 if bet >= minimum_raise / 2:
                     last_aggressor = player
                 largest_bet = self.money_for_pot[player] + bet
