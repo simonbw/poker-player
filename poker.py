@@ -82,6 +82,7 @@ class Game:
 
         for player in self.players:
             if self.chips[player] == 0:
+                player.on_bust()
                 print(player.name, 'is out!')
                 if player not in self.busted_players:
                     self.busted_players.append(player)
@@ -172,7 +173,7 @@ class Game:
                 #   (matters when someone raises less than min_raise by going all-in)
                 if bet >= minimum_raise / 2:
                     last_aggressor = player
-                largest_bet = self.money_for_pot[player] + bet
+                largest_bet = self.money_for_pot[player]
                 minimum_raise = raise_amount
                 print(player.name, 'raises to', self.money_for_pot[player], 'with', self.chips[player], 'chips left.')
                 for p in self.players:
@@ -186,6 +187,8 @@ class Game:
                 for p in self.players:
                     if p is not player:
                         p.on_bet(player.name, "call", bet, GameView(self, player))
+
+
 
 
         # put all bets in pot

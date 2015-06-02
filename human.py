@@ -17,9 +17,13 @@ class Human(Player):
         print('You have', g.my_chips, 'chips.')
         print('Your cards are:', Card.int_to_str(g.hole_cards[0]), Card.int_to_str(g.hole_cards[1]))
         prompt = ("It's {0} to stay in and minimum raise is {1}." 
-        	        + "\nWhat would you like to do? " 
-        	        + "").format(g.min_bet if g.min_bet > 0 else 'free', g.min_raise)
-        action, amount = input(prompt).split(' ')
+                    + "\nWhat would you like to do? " 
+                    + "").format(g.min_bet if g.min_bet > 0 else 'free', g.minimum_raise)
+        n = input(prompt).split(' ')
+        if len(n) == 1:
+            action = n[0]
+        else:
+            action, amount = n
 
         if action == 'fold':
             return None
@@ -41,7 +45,7 @@ class Human(Player):
         @param amount - The amount put in to call or the amount raised by or None (fold).
         @param game_view - A game view with all the data.
         """
-        time.sleep(2)
+        #time.sleep(2)
 
     def on_new_round(self, game_view):
         """Called at the beginning of a new round of betting."""
@@ -54,3 +58,6 @@ class Human(Player):
     def on_new_game(self, players):
         """Called at the beginning of a new game."""
         pass
+
+    def on_bust(self):
+        time.sleep(120)

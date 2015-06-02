@@ -34,3 +34,6 @@ class Player:
     def on_new_game(self, players):
         """Called at the beginning of a new game."""
         pass
+
+    def on_bust(self):
+        pass
