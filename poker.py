@@ -10,6 +10,8 @@ class Game:
 
     """Describes one game of No-Limit Texas Hold'em as a single table tournament"""
 
+    print_divider = '======================'
+
     def __init__(self, players):
         """"""
 
@@ -23,6 +25,7 @@ class Game:
         self.odd_chips = 0
         self.hole_cards = {}
         self.deck = Deck()
+        self.hands_played = 0
 
         # Starting chips for each player
         self.chips = {}
@@ -43,6 +46,7 @@ class Game:
             self.reset_table()
             self.play_hand()
             self.remove_busted_players()
+            self.hands_played += 1
         self.report_end_standings()
 
     def reset_table(self):
@@ -66,7 +70,6 @@ class Game:
             if self.enough_players_have_chips():
                 self.round_of_betting(i == 3)
             self.reveal(i)
-
             if len(self.players) == len(self.folded_players) + 1:
                 break  # go to payout
         remaining_players = set(self.players) - self.folded_players
@@ -88,12 +91,12 @@ class Game:
         for player in self.busted_players:
             if player in self.players:
                 self.players.remove(player)
-            print(player.name, 'is currently busted')
 
     def report_end_standings(self):
         """Reports the results of the tournament"""
 
         print('The game has concluded.')
+        print(self.hands_played, 'hands were played.')
         print(self.players[0].name, 'is the victor!')
 
         print('These players are ranked from 2nd to last:\n')
@@ -110,9 +113,12 @@ class Game:
     def round_of_betting(self, first_round=False):
         """Ask for bets from each player."""
         print("New Round Of Betting")
+        print(Game.print_divider)
 
         for player in self.players:
             player.on_new_round(GameView(self, player))
+        print("Betting Order is:", ", ".join(
+                    [player.name for player in self.players]))
 
         if first_round:
             self.antes()
@@ -124,29 +130,21 @@ class Game:
         else:
             largest_bet = 0
             last_aggressor = None
-        print("Betting Order:", ", ".join(
-                    [player.name for player in self.players]))
         minimum_raise = self.big_blind
 
         for player in cycle(self.players):
             if first_round and largest_bet == self.big_blind and player is self.players[-1]:
                 last_aggressor = self.players[2 % len(self.players)]
             if len(self.folded_players) + 1 == len(self.players) or player is last_aggressor:
+                print('Betting is closed')
                 break
             if player in self.folded_players:
                 continue
             if not first_round and last_aggressor is None:
                 last_aggressor = player
 
-            print('Action to', player.name)
             amount_to_stay_in = largest_bet - self.money_for_pot[player]
-
-            if amount_to_stay_in == 0:
-                print('0 to stay in. Check or bet?')
-            else:
-                print(amount_to_stay_in, 'to stay in.\nCall, raise, or fold.')
             bet = player.bet(GameView(self, player, amount_to_stay_in, minimum_raise))
-
             # Detect folding
             if bet is None:
                 # notify other players
@@ -156,13 +154,12 @@ class Game:
                 self.folded_players.add(player)
                 print(player.name, 'has folded with', self.chips[player], 'chips left.')
                 continue  # go to next player
-
+            
+            bet = min(self.chips[player], bet)  # Auto All-in is just much cleaner
             self.validate_bet_amount(player, bet, amount_to_stay_in, minimum_raise)
-
             # Adjust chip totals
             self.money_for_pot[player] += bet
             self.chips[player] -= bet
-            print(player.name, 'has', self.chips[player], 'chips left.')
 
             if bet == 0:    
                 for p in self.players:
@@ -176,17 +173,20 @@ class Game:
                 if bet >= minimum_raise / 2:
                     last_aggressor = player
                 largest_bet = self.money_for_pot[player] + bet
+                minimum_raise = raise_amount
+                print(player.name, 'raises to', self.money_for_pot[player], 'with', self.chips[player], 'chips left.')
                 for p in self.players:
                     if p is not player:
                         p.on_bet(player.name, "raise", raise_amount, GameView(self, player))
-                print(player.name, 'has raised', raise_amount)
-            elif bet == amount_to_stay_in:                      # Call
+            elif bet == amount_to_stay_in or self.chips[player] == 0:                      # Call
+                if self.chips[player] == 0:
+                    print(player.name, 'calls and goes all-in')
+                else:
+                    print(player.name, 'calls for', bet, 'with', self.chips[player], 'chips left.')
                 for p in self.players:
                     if p is not player:
                         p.on_bet(player.name, "call", bet, GameView(self, player))
-                print(player.name, 'has called for', bet)
 
-            print('The largest bet is currently', largest_bet)
 
         # put all bets in pot
         for player in self.players:
@@ -197,6 +197,8 @@ class Game:
             if len(self.players) > 2:
                 self.players.insert(0, self.players.pop())
             self.players.insert(0, self.players.pop())
+        print(self.pots[0], 'chips in the pot.')
+        print(Game.print_divider)
 
     def antes(self):
         """Apply the big and little blinds."""
@@ -220,6 +222,8 @@ class Game:
         else:
             self.money_for_pot[BB] += self.big_blind
             self.chips[BB] -= self.big_blind
+        print(LB.name, 'posts little blind of', self.money_for_pot[LB])
+        print(BB.name, 'posts big blind of', self.money_for_pot[BB])
 
     def deal(self):
         """Deals 2 random cards to each player"""
@@ -300,6 +304,12 @@ class GameView:
         self.minimum_raise = minimum_raise
         self.big_blind = game_state.big_blind
 
+        # John's variables (in interest of finishing)
+        minr = 0 if minimum_raise is None else minimum_raise
+        self.pot_size = game_state.pots[0]
+        self.min_bet = 0 if amount_to_stay_in is None else amount_to_stay_in
+        self.min_raise = minr + self.min_bet
+        self.players_in_round = self.players_in_hand
 
 if __name__ == '__main__':
     from simon import Simon
@@ -307,7 +317,14 @@ if __name__ == '__main__':
     from callingstation import CallingStation
     from folder import Folder
     from bluffer import Bluffer
-    players = [John(), CallingStation(), CallingStation(), CallingStation(), CallingStation(), Bluffer(), Folder()]
+    players = [
+            John('John'), 
+            CallingStation('Bob'), 
+            CallingStation('Arnold'), 
+            CallingStation('Theresa'), 
+            CallingStation('Francis'), 
+            Bluffer('Kate')
+        ]
     game = Game(players)
 
     game.play()

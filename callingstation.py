@@ -2,10 +2,8 @@ from player import Player
 from evaluator import Evaluator
 
 class CallingStation(Player):
-    agent_count = 0
-    def __init__(self):
-        CallingStation.agent_count += 1
-        self.name = 'Fish' + str(CallingStation.agent_count)
+    def __init__(self, name):
+        self.name = name
         evaluator = Evaluator()
 
     def bet(self, game_view):

@@ -5,7 +5,6 @@ import random
 import itertools
 
 class John(Player):
-    agent_count = 0
     round_names = { 
         0: 'Preflop',
         3: 'Postflop',
@@ -16,7 +15,7 @@ class John(Player):
     _FULL_DECK = []
     # In order of 2:deck, 3: deck-2, 4: deck-2,3
     # d-c-s-h
-
+    _ALL_HOLE_CARDS = []
     # Tuples
     # key = pair rank eg 'A': {H|H is a tuple of 2 cards with rank = 'A'}
     _PAIRS = {}
@@ -26,76 +25,63 @@ class John(Player):
     # Is this worth it at all?
     _SUITED_CONNECTORS = {}
 
-    def __init__(self):
-        John.agent_count += 1
-        self.name = 'John' + str(John.agent_count)
+    def __init__(self, name):
+        self.name = name
         self.hand = set()
         self.betting_order = []
         self.round_number = 0
         self.current_round = ''
-        self.raises_this_round = 0
+        self.my_raises_this_round = 0
+        self.my_actions_this_tound = 0
+        self.total_raises_this_round = 0
+        self.total_actions_this_round = 0
         self.hands_seen = 0
         self.update_history = []
         self.eval = Evaluator()
         self.short_stack = False
-        self.slow_play = False
         self.check_raise = False
+        self.check_call = False
         self.three_bet = False
 
         # ========================================
         # Base Ranges
         # ========================================
-        # Open Ranges:
-        self.UTG_open_range = set()
+        # Opening Ranges:
+        self.early_open_range = set()
         self.mid_open_range = set()
         self.late_open_range = set()
-        self.BB_open_range = set()
-        self.LB_open_range = set()
+
         # Generate tables
         self._initiate_opening_hands()
-        self._generate_ranges()
+        self._generate_initial_ranges()
     
 
     def bet(self, game_view):
         g = game_view
-        self.hand = {tuple(g.hole_cards)}
-        cards = g.hole_cards
-        print(tuple(cards) in self.value_hands)
+        self.hand = tuple(g.hole_cards)
+        self.short_stack = g.my_chips < 25 * g.big_blind
+        self.short_handed = len(g.players) <= 3
+        self.total_actions_this_round += 1
+        self.my_actions_this_tound += 1
 
-        if self.hand <= self.value_hands:
-            print('Trying to raise with', Card.int_to_str(cards[0]), Card.int_to_str(cards[1]))
-            return min(g.my_chips, max(g.amount_to_stay_in, g.big_blind * 3, g.amount_to_stay_in + g.minimum_raise))
+        check_rating = 0
+        call_rating = 0
+        raise_rating = 0
+        raise_total = 0
+        for player in g.players_in_round:
+            call_rating += self._call_rating(player, g)
+            r1, r2 = self._raise_rating(player, g)
+            raise_rating += r1
+            raise_total += r2
+        raise_amount = raise_total // len(g.players_in_round)
+
+        if raise_rating == max(check_rating, call_rating, raise_rating) or self.check_raise:
+            self.my_raises_this_round += 1
+            return max(g.min_bet, raise_amount, g.min_raise)
+        elif call_rating == max(check_rating, call_rating) or self.check_call:
+            return g.min_bet
         else:
-            print('Trying to fold')
-            return None
-
-        if g.my_chips < 25 * g.big_blind:
-            self.short_stack = True
-
-        if self.check_raise:
-            return min(g.my_chips, g.pots[0] * 2 // 3)
-
-        check_ev = 0
-        call_ev = 0
-        raise_ev = 0
-        for player in g.players_in_hand:
-            call_ev += self._call_ev(player, g)
-            raise_ev += self._raise_ev(player, g)
-
-        if self.slow_play:
-            check_ev
-
-        if random.random() < 0.03:
-            call_ev += 500
-        
-        elif raise_ev == max(check_ev, call_ev, raise_ev):
-            return min(g.my_chips, self._raise_amount(g))
-        elif call_ev == max(check_ev, call_ev):
-            return min(g.my_chips, g.amount_to_stay_in)
-        else:
-            return None if g.amount_to_stay_in > 0 else 0
-
-        return game_view.chips[self.name]
+            return None if g.min_bet != 0 else 0
 
     def on_bet(self, player_name, action, amount, game_view):
         """
@@ -105,69 +91,65 @@ class John(Player):
         @param amount - The amount put in to call or the amount raised by or None (fold).
         @param game_view - A game view with all the data.
         """
+        self.total_actions_this_round += 1
         player = self.opponent[player_name]
-        # Note, no previous action in round. Should be bot's strongest play area
         if self.current_round == 'Preflop':
-            if action == 'check':
-                pass  # not even remotely possible
-            elif action == 'fold':
-                if self.raises_this_round == 1:
+            if action == 'fold':
+                if self.total_raises_this_round == 1:
                     player.fv_steal_count += 1
-                elif self.raises_this_round == 2:
+                elif self.total_raises_this_round == 2:
                     player.fv_three_bet_count += 1
             elif action == 'raise':
                 player.preflop_raise_count += 1
-                if player_name in self.betting_order[-3:-2] and self.raises_this_round == 0:
+                if player_name in self.betting_order[-3:-2] and self.total_raises_this_round == 0:
                     player.ats_count += 1
-                if self.raises_this_round == 0:
+                if self.total_raises_this_round == 0:
                     player.flop_cb_count += 1
-                elif self.raises_this_round == 1:
+                elif self.total_raises_this_round == 1:
                     player.three_bet_count += 1
             elif action == 'call':
-                pass
+                if self.total_raises_this_round == 2:
+                    player.cv_three_bet_count += 1
 
         elif self.current_round == 'Postflop':
-            if action == 'check':
-                pass
-            elif action == 'fold':
+            if action == 'fold':
                 player.fv_flop_cb_count += 1
-            elif action == 'raise' and self.raises_this_round == 0:
+            elif action == 'raise' and self.total_raises_this_round == 0:
                 player.flop_cb_count += 1
             elif action == 'call':
-                pass
+                player.cv_flop_cb_count += 1
 
         elif self.current_round == 'Turn':
-            if action == 'check':
-                pass
-            elif action == 'fold':
-                player.fv_flop_cb_count += 1
-            elif action == 'raise' and self.raises_this_round == 0:
-                player.flop_cb_count += 1
+            if action == 'fold':
+                player.fv_turn_cb_count += 1
+            elif action == 'raise' and self.total_raises_this_round == 0:
+                player.turn_cb_count += 1
             elif action == 'call':
-                pass
+                player.cv_turn_cb_count += 1
 
         elif self.current_round == 'River':
-            if action == 'check':
-                pass
-            elif action == 'fold':
-                player.fv_flop_cb_count += 1
-            elif action == 'raise' and self.raises_this_round == 0:
-                player.flop_cb_count += 1
+            if action == 'fold':
+                player.fv_river_cb_count += 1
+            elif action == 'raise' and self.total_raises_this_round == 0:
+                player.river_cb_count += 1
             elif action == 'call':
-                pass
+                player.cv_river_cb_count += 1
 
         player.action_history[-1].append((action, amount))
         player.actions_this_round += 1
         if action == 'raise':
-            self.raises_this_round += 1
+            self.total_raises_this_round += 1
 
     def on_new_round(self, game_view):
         """Called at the beginning of a new round of betting."""
         self.betting_order = game_view.players
         self.round_number += 1
         self.current_round = John.round_names[len(game_view.community_cards)]
-        self.raises_this_round = 0
-        for player in game_view.players_in_hand:
+        self.total_raises_this_round = 0
+        self.total_actions_this_round = 0
+        self.my_raises_this_round = 0
+        self.my_actions_this_tound = 0
+        for player in game_view.players_in_round:
             villain = self.opponent[player]
             villain.actions_this_round = 0
             if self.current_round == 'Postflop':
@@ -181,7 +163,7 @@ class John(Player):
     def on_new_hand(self, game_view):
         """Called at the beginning of a new hand."""
         self.hands_seen += 1
-        self.hand = game_view.hole_cards
+        self.hand = tuple(game_view.hole_cards)
  
         for villain in self.opponent:
             self.opponent[villain].hands_seen += 1
@@ -201,20 +183,40 @@ class John(Player):
 
         return my_position > villain_position
 
-    def _raise_ev(self, villain_name, game):
-        ev = 0
-        if self.hand <= self.value_hands:
-            return 1000
+    # return a tuple
+    def _raise_rating(self, villain_name, g):
+        villain = self.opponent[villain_name]
+        #for possible_hand in John._ALL_HOLE_CARDS:
 
-        return 1
+        if self.current_round == 'Preflop':
 
-    def _call_ev(self, villain_name, game):
+            if self.total_raises_this_round == 1:  # 3 bet?
+                if self.hand in self.three_bet_range:
+                    return (1, 6 * g.big_blind)
+            elif self.total_raises_this_round == 2:  # 4 bet?
+                pass # 4-bet?
+            elif self.total_raises_this_round == 3:  # 5 bet?
+                pass
+            if self.hand in self.early_open_range:
+                return (1, round(g.big_blind * 3.5))
+        elif self.current_round == 'Postflop':
+            pass
+        elif self.current_round == 'Turn':
+            pass
+        elif self.current_round == 'River':
+            pass
+
+        return (-1, 2)
+
+    def _call_rating(self, villain_name, game):
         call = game.amount_to_stay_in
         pot = game.pots[0]
-        return 10    
+        if self.hand in self.three_bet_calling_range:
+            return 1
+        return -1    
 
     def _fold_equity(self, villain_name, bet_size):
-        return 10
+        return 2
    
     def _pot_odds(self, game):
         return 0.3
@@ -223,45 +225,65 @@ class John(Player):
         aggression = villain.aggression()
         return 30
 
-    def _raise_amount(self, game):
-        pot_size = game.pots[0]
-        base = game.amount_to_stay_in
-
-        if self.current_round == 'Preflop':
-            if self.three_bet:
-                return pot_size + pot_size // 2
-            if self.hand <= self.value_hands:
-                return pot_size + pot_size // 2
-            #TODO
-            #if set(game.hole_cards)
-            return base + game.big_blind * 3 + game.big_blind // 2
-        elif current_round == 'Postflop':
-            return pot_size
-        elif current_round == 'Turn':
-            return pot_size * 2 + pot_size // 2
-        elif current_round == 'River':
-            hand = self.eval.evaluate()
-            return 10
-
-        return 0
-
-    def _generate_ranges(self):
-        self.value_hands = John._PAIRS['A'].union( 
+    def _generate_initial_ranges(self):
+        self.early_open_range = John._PAIRS['A'].union( 
                 John._PAIRS['K'],
-                John._PAIRS['Q'], 
-                John._PAIRS['J'],
+                John._PAIRS['Q'],
                 John._SUITED['AK'],
+                John._SUITED['AQ'],
+                John._SUITED['KQ'],
                 John._UNSUITED['AK'])
-                #John._SUITED['AQ'],
-                #John._SUITED['AJ'])
 
-        print((Card.new('Qc'), Card.new('As')) in self.value_hands)
+        self.mid_open_range = self.early_open_range.union(
+                John._PAIRS['J'], John._PAIRS['9'],
+                John._PAIRS['T'], John._PAIRS['8'],
+                John._SUITED['AJ'], John._SUITED['A2'],
+                John._SUITED['AT'], John._SUITED['KJ'],
+                John._SUITED['A5'], John._SUITED['KT'],
+                John._SUITED['A4'], John._SUITED['QJ'],
+                John._SUITED['A3'], John._SUITED['JT'],
+                John._UNSUITED['AQ'],
+                John._UNSUITED['AJ'],
+                John._UNSUITED['AT'])
+                
+        self.late_open_range = self.mid_open_range.union(
+                John._PAIRS['7'], John._PAIRS['6'],
+                John._SUITED['A9'], John._SUITED['T9'],
+                John._SUITED['A8'], John._SUITED['98'],
+                John._SUITED['A7'], John._SUITED['87'],
+                John._SUITED['A6'], John._SUITED['76'],
+                John._SUITED['K9'], John._SUITED['65'],
+                John._SUITED['QT'], John._SUITED['54'],
+                John._SUITED['Q9'], John._SUITED['T8'],
+                John._SUITED['J9'], John._SUITED['97'],
+                John._SUITED['J8'], John._SUITED['86'],
+                John._SUITED['75'],
+                John._UNSUITED['KQ'], John._UNSUITED['KJ'],
+                John._UNSUITED['KQ'], John._UNSUITED['KT'],
+                John._UNSUITED['QJ'])
+
+        self.three_bet_range = John._PAIRS['A'].union( 
+                John._PAIRS['K'],
+                John._PAIRS['Q'],
+                John._SUITED['AK'],
+                John._SUITED['AQ'])
+
+        self.four_bet_range = John._PAIRS['A'].union( 
+                John._PAIRS['K'],
+                John._PAIRS['Q'])
+
+        self.five_bet_range = John._PAIRS['A']
+
+        self.three_bet_calling_range = self.three_bet_range - self.four_bet_range
+        self.four_bet_calling_range = self.four_bet_range - self.five_bet_range
+
 
     def _initiate_opening_hands(self):
         for rank in Card.STR_RANKS:
             for suit,val in Card.CHAR_SUIT_TO_INT_SUIT.items():
                 John._FULL_DECK.append(Card.new(rank + suit))
         for combo in itertools.combinations(John._FULL_DECK, 2):
+            John._ALL_HOLE_CARDS.append(combo)
             cards = Card.int_to_str(combo[0]) + Card.int_to_str(combo[1])
             c1_rank, c1_suit, c2_rank, c2_suit = cards
             # Check for pairs
@@ -292,7 +314,6 @@ class John(Player):
                             # DEBUGGING
                             # print(ranks, Card.int_to_str(combo[0]), Card.int_to_str(combo[1]))
 
-
 class Villain():
     '''Models an opponent'''
     count = 0
@@ -315,6 +336,7 @@ class Villain():
         self.three_bet_count = 0
         self.three_bet_opp_count = 0
         self.fv_three_bet_count = 0
+        self.cv_three_bet_count = 0
         self.ats_count = 0
         self.fv_steal_count = 0
 
@@ -324,23 +346,35 @@ class Villain():
         self.limp_fold_count = 0
         self.flop_cb_count = 0
         self.fv_flop_cb_count = 0
+        self.cv_flop_cb_count = 0
 
         self.turns_seen = 0
         self.turn_cb_count = 0
         self.fv_turn_cb_count = 0
-        self.rivers_seen = 0
+        self.cv_turn_cb_count = 0
 
-        self.label = (5, 5, 2)
-        # loose, aggressive, pro
+        self.rivers_seen = 0
+        self.river_cb_count = 0
+        self.fv_river_cb_count = 0
+        self.cv_river_cb_count = 0
+
+        # 'calling station', 'shark', 'average', 'LAG', 'TAG'
+        self.label = 'average'
         
     def get_vpip(self):
-        """ """
-        pass 
+        return self.vpip_count / self.hands_seen
 
     def get_label(self):
+        if get_call_rate() > .8:
+            return 'calling station'
         return self.label
 
-    def get_3_bet(self):
+    def get_call_rate(self):
+        calls = self.vpip_count + self.cv_flop_cb_count + self.cv_turn_cb_count + self.cv_river_cb_count
+        approx_opportunities = self.rivers_seen + self.turns_seen + self.flops_seen + self.hands_seen
+        return calls / approx_opportunities
+
+    def get_three_bet(self):
         return self.three_bet_count / self.three_bet_opp_count
 
     def get_flop_cb(self):
