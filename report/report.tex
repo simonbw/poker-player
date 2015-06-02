@@ -1,0 +1,116 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{multicol}
+
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+	language=Python,
+	aboveskip=3mm,
+	belowskip=3mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle={\small\ttfamily},
+	numbers=none,
+	numberstyle=\tiny\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=3
+}
+
+\addtolength{\oddsidemargin}{-0.975in}
+\addtolength{\evensidemargin}{-0.975in}
+\addtolength{\textwidth}{1.75in}
+
+\addtolength{\topmargin}{-.875in}
+\addtolength{\textheight}{1.75in}
+
+\title{Modeling Opponents in Poker to use Exploitative Strategies}
+\author{John Jeng, Simon Baumgardt-Wellander}
+\date{March 30th, 2015}
+\pagestyle{myheadings}
+\markright{}
+
+% Custom commands
+\newif\ifcomment
+\commentfalse % Show comments
+\newcommand{\comment}[1]{\ifcomment#1\fi}
+
+\newcommand{\sumleft}{\sum\limits_{i=1}^n i^3}
+\newcommand{\sumright}{\left(\sum\limits_{i=1}^n i \right)^2}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\pem}{$ (\pi, E) $~}
+
+\newtheorem{PF}{Proof}
+\theoremstyle{definition}
+\newtheorem{Def}{Definition}
+\newtheorem{Thm}{Theorem}
+\newtheorem{lemma}{Lemma}
+
+\begin{document}
+%Begin Formalities========
+%=========================
+\maketitle
+\begin{abstract}
+	
+\end{abstract}
+%\newpage
+%\tableofcontents
+%\newpage
+%End Formalities=========
+%========================
+\noindent\makebox[\linewidth]{\rule{\textwidth}{0.4pt}}
+%====================================================
+% Setting the Problem
+%====================================================
+\section{Problem Description}
+\begin{multicols}{2}
+
+
+\subsection{Simplifying Assumptions}
+
+\section{Formulation}
+
+\section{Solution}
+
+\section{Results}
+
+\section{Future Work}
+
+\section{Acknowledgments}
+
+
+
+\end{multicols}
+\section{Appendix A}
+\begin{lstlisting}
+
+\end{lstlisting}
+
+
+\begin{thebibliography}{9}
+\bibitem{1}
+	Richard E. Korf
+	A New Algorithm for Optimal Bin Packing
+	AAAI-02 Proceedings. Copyright © 2002, AAAI
+	2002
+
+\bibitem{2}
+    Kleinberg and Tardos
+    Algorithm Design
+    Copyright 2006 by Pearson Education
+    2006
+\end{thebibliography}
+
+\end{document}
