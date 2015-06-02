@@ -7,6 +7,7 @@ class Bluffer(Player):
         evaluator = Evaluator()
 
     def bet(self, game_view):
+        # print('minimum_raise =', game_view.minimum_raise)
         return min(game_view.my_chips, game_view.minimum_bet + game_view.minimum_raise)
 
     def update(self, game_view):
