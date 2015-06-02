@@ -1,10 +1,14 @@
 class Player:
-        #
-    player_count = 0
-
+    player_counts = {}
     def __init__(self):
-        Player.player_count += 1
-        self.name = self.__class__.__name__ + str(Player.player_count)
+        name = self.__class__.__name__
+        player_count = Player.player_counts.get(name, 0) + 1
+        Player.player_counts[name] = player_count
+        if player_count == 1:
+            self.name = name
+        else:
+            self.name = name + str(Player.player_count)
+        
 
     def bet(self, game_view):
         """
@@ -29,6 +33,10 @@ class Player:
 
     def on_new_hand(self, game_view):
         """Called at the beginning of a new hand."""
+        pass
+
+    def on_hand_end(self, winner, pot, game_view):
+        """Called at the end of a hand."""
         pass
 
     def on_new_game(self, players):

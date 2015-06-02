@@ -24,7 +24,7 @@ class Simon(Player):
         # TODO: Bluff
 
         if my_win_chance > 0.5:
-            target_bet = game_view.minimum_bet + game_view.minimum_raise * 4 * my_win_chance * my_win_chance
+            target_bet = game_view.minimum_bet + game_view.minimum_raise * 2
             return min(target_bet, game_view.chips[self.name])
         else:
             # Don' fold if we don't have to
