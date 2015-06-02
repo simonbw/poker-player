@@ -1,15 +1,36 @@
-class Human(Player):
-    player_count = 0
+from player import Player
+from card import Card
+import time
 
-    def __init__(self):
-        Player.player_count += 1
-        self.name = self.__class__.__name__ + str(Player.player_count)
+class Human(Player):
+
+    def __init__(self, name):
+        self.name = name
 
     def bet(self, game_view):
         """
         Called when asking how much a player would like to bet.
         Returning None folds.
         """
+        g = game_view
+        print('Action to you', self.name)
+        print('You have', g.my_chips, 'chips.')
+        print('Your cards are:', Card.int_to_str(g.hole_cards[0]), Card.int_to_str(g.hole_cards[1]))
+        prompt = ("It's {0} to stay in and minimum raise is {1}." 
+        	        + "\nWhat would you like to do? " 
+        	        + "").format(g.min_bet if g.min_bet > 0 else 'free', g.min_raise)
+        action, amount = input(prompt).split(' ')
+
+        if action == 'fold':
+            return None
+        if action == 'check':
+            return 0
+        if action == 'call':
+            return g.min_bet
+        if action in ('raise', 'bet'):
+            return max(g.min_bet, g.min_raise, int(amount))
+
+
         return None
 
     def on_bet(self, player_name, action, amount, game_view):
@@ -20,7 +41,7 @@ class Human(Player):
         @param amount - The amount put in to call or the amount raised by or None (fold).
         @param game_view - A game view with all the data.
         """
-        pass
+        time.sleep(2)
 
     def on_new_round(self, game_view):
         """Called at the beginning of a new round of betting."""

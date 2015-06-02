@@ -317,9 +317,12 @@ if __name__ == '__main__':
     from callingstation import CallingStation
     from folder import Folder
     from bluffer import Bluffer
+    from human import Human
+    human_name = input('What is your name? ')
     players = [
             John('John'), 
-            CallingStation('Bob'), 
+            CallingStation('Bob'),
+            Human(human_name),
             CallingStation('Arnold'), 
             CallingStation('Theresa'), 
             CallingStation('Francis'), 

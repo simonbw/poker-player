@@ -186,7 +186,7 @@ class John(Player):
     # return a tuple
     def _raise_rating(self, villain_name, g):
         villain = self.opponent[villain_name]
-        #for possible_hand in John._ALL_HOLE_CARDS:
+        # TODO: for possible_hand in John._ALL_HOLE_CARDS:
 
         if self.current_round == 'Preflop':
 
