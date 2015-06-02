@@ -27,7 +27,7 @@ class Game:
         # Starting chips for each player
         self.chips = {}
         for player in players:
-            self.chips[player] = 100
+            self.chips[player] = 300
 
         for player in self.players:
             player.on_new_game([p.name for p in self.players])
@@ -291,13 +291,14 @@ class GameView:
         self.my_chips = game_state.chips[player]
         self.amount_to_stay_in = amount_to_stay_in
         self.minimum_bet = amount_to_stay_in
-        self.chips = {player.name: game_state.chips[player] for player in list(game_state.chips.keys())}
+        self.chips = {player.name: game_state.chips[player] for player in list(game_state.chips)}
         self.players = [player.name for player in game_state.players]
         players_in_hand = list(set(game_state.players) - game_state.folded_players)
         self.players_in_hand = [player.name for player in players_in_hand]
         self.folded_players = [player.name for player in game_state.folded_players]
         self.money_for_pot = {player.name: game_state.money_for_pot[player] for player in list(game_state.money_for_pot.keys())}
         self.minimum_raise = minimum_raise
+        self.big_blind = game_state.big_blind
 
 
 if __name__ == '__main__':
@@ -306,7 +307,7 @@ if __name__ == '__main__':
     from callingstation import CallingStation
     from folder import Folder
     from bluffer import Bluffer
-    players = [Bluffer(), CallingStation(), CallingStation(), CallingStation(), Folder()]
+    players = [John(), CallingStation(), CallingStation(), CallingStation(), CallingStation(), Bluffer(), Folder()]
     game = Game(players)
 
     game.play()
