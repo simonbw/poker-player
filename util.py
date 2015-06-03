@@ -38,6 +38,7 @@ class Util():
         @param community_cards - 
         @param opponent_range - set of tuples that represent hole cards
         """
+        community_cards = tuple(community_cards)
         if len(community_cards) == 0:
             return self.win_chance_preflop(hole_cards, opponent_range)
         elif len(community_cards) == 3:
@@ -64,6 +65,9 @@ class Util():
         wins = 0
         possible_events = 0
         for opposing_hand in opponent_range:
+            if (opposing_hand[0] in community_cards + hole_cards or
+                opposing_hand[1] in community_cards + hole_cards):
+                continue
             deck = self.get_remaining_deck(hole_cards + community_cards + opposing_hand)
             for cards in combinations(deck, 2):
                 possible_events += 1
@@ -73,7 +77,7 @@ class Util():
                     wins += 1
                 elif my_score == opposing_score:
                     wins += 0.5
-
+        possible_events = max(possible_events, 1)
         return wins / possible_events
 
     def win_chance_after_turn(self, hole_cards, community_cards, opponent_range):
@@ -81,6 +85,9 @@ class Util():
         wins = 0
         possible_events = 0
         for opposing_hand in opponent_range:
+            if (opposing_hand[0] in community_cards + hole_cards or
+                opposing_hand[1] in community_cards + hole_cards):
+                continue
             deck = self.get_remaining_deck(hole_cards + community_cards + opposing_hand)
             for cards in deck:
                 possible_events += 1
@@ -90,6 +97,7 @@ class Util():
                     wins += 1
                 elif my_score == opposing_score:
                     wins += 0.5
+        possible_events = max(possible_events, 1)
         return wins / possible_events
 
     def win_chance_after_river(self, hole_cards, community_cards, opponent_range):
@@ -97,6 +105,9 @@ class Util():
         possible_events = 0
         wins = 0
         for opposing_hand in opponent_range:
+            if (opposing_hand[0] in community_cards + hole_cards or
+                opposing_hand[1] in community_cards + hole_cards):
+                continue
             possible_events += 1
             my_score = evaluator.evaluate(hole_cards, community_cards)
             opposing_score = evaluator.evaluate(opposing_hand, community_cards)
@@ -104,6 +115,7 @@ class Util():
                 wins += 1
             elif my_score == opposing_score:
                 wins += 0.5
+        possible_events = max(possible_events, 1)
         return wins / possible_events
 
     def get_remaining_deck(self, known_cards):

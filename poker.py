@@ -319,7 +319,7 @@ class GameView:
     def __init__(self, game_state, player, amount_to_stay_in=None, minimum_raise=None):
         self.hole_cards = game_state.hole_cards[player][:]
 
-        self.community_cards = game_state.community_cards[:]
+        self.community_cards = tuple(game_state.community_cards)
         self.pots = game_state.pots
         self.my_chips = game_state.chips[player]
         self.amount_to_stay_in = amount_to_stay_in
@@ -348,10 +348,8 @@ if __name__ == '__main__':
     from human import Human
     from james_bond import JamesBond
     players = [
-            Human(),
-            John('John'), 
-            CallingStation('Arnold'), 
-            Simon(),
+            Human(), 
+            CallingStation('Arnold'),
             CallingStation('Theresa'), 
             JamesBond(), 
             # CallingStation('Steve'), 
