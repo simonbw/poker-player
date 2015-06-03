@@ -178,7 +178,6 @@ class Game:
                         p.on_bet(player.name, "fold", None, GameView(self, player))
                 self.folded_players.add(player)
                 log(player.name, 'folds with', self.chips[player], 'chips left.')
-                log(player.name, 'folds with', self.chips[player], 'chips left.')
                 continue  # go to next player
             
             bet = min(self.chips[player], bet)  # Auto All-in is just much cleaner

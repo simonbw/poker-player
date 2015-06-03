@@ -6,8 +6,7 @@ util = Util()
 average_range= set()
 for set_ in Util.PAIRS.values():
     average_range |= set_
-for set_ in Util.SUITED.values():
-    average_range |= set_
+
 average_range |= (Util.UNSUITED['AK'] | Util.UNSUITED['K8'] | 
                  Util.UNSUITED['AQ'] | Util.UNSUITED['QJ'] | 
                  Util.UNSUITED['AJ'] | Util.UNSUITED['QT'] | 

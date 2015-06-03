@@ -12,6 +12,7 @@ class JamesBond(Player):
         # Game data
         self.name = 'James Bond'
         self.opponents = {}
+        self.pot_evs = {}
 
         # Hand data
         self.hand = ()
@@ -52,6 +53,9 @@ class JamesBond(Player):
 
         raise_ev, raise_amount = self._raise_ev(g)
         call_ev = self._call_ev(g)
+
+        if self.current_round == 'Preflop' and self.hand not in self.mid_open_range:
+            return None if g.min_bet != 0 else 0
 
         if raise_ev == max(0, call_ev, raise_ev) or self.check_raise:
             self.my_raises_this_round += 1
@@ -134,9 +138,6 @@ class JamesBond(Player):
                 if player.last_action()[0] == 'check':
                     player.cr_count += 1
         if action == 'call':
-            if player.actions_this_round > 0:
-                if player.last_action()[0] == 'check':
-                    player.check_call_count += 1
             self.total_raises_this_round += 1
             if player.actions_this_round == 0:
                 player.vpip_count += 1
@@ -199,12 +200,12 @@ class JamesBond(Player):
         total_amount_ratings = 0
 
         for opponent_name in g.players_in_round:
-            if opponent_name != self.name:
+            if opponent_name != self.name and self._pa(opponent_name):
                 rating, amount, amount_rating = self._raise_vs(self.opponents[opponent_name], g)
                 final_rating += rating
                 final_amount += round(amount * amount_rating)
                 total_amount_ratings += amount_rating
-        final_amount = final_amount / total_amount_ratings
+        final_amount = final_amount / max(1, abs(total_amount_ratings))
 
         return (final_rating, final_amount)
 
@@ -243,8 +244,11 @@ class JamesBond(Player):
                 return (10, round(g.big_blind * 4), 5)
         else:
             raise_amount = g.pot_size // 2
-            rating = (self._fold_equity(opponent, g.pot_size) 
-                        + self._pot_ev(raise_amount, opponent, g))
+            if (raise_amount, opponent.label) not in self.pot_evs:
+                self.pot_evs[(raise_amount, opponent.label)] = self._pot_ev(raise_amount, opponent, g)
+            rating = self.pot_evs[(raise_amount, opponent.label)]
+
+            rating += self._fold_equity(opponent, g.pot_size)
             amount_rating = rating
         return (rating, raise_amount, amount_rating)
 
@@ -253,7 +257,7 @@ class JamesBond(Player):
         final_rating = 0
 
         for opponent_name in g.players_in_round:
-            if opponent_name != self.name:
+            if opponent_name != self.name and self._pa(opponent_name):
                 final_rating += self._call_vs(self.opponents[opponent_name], g)
         final_rating = final_rating / (len(g.players_in_round) - 1)
 
@@ -265,7 +269,9 @@ class JamesBond(Player):
         if self.current_round == 'Preflop':
             rating *= self.c['flattingValue'+str(num_players)]
         else:
-            rating = self._pot_ev(g.min_bet, opponent, g)
+            if (g.min_bet, opponent.label) not in self.pot_evs:
+                self.pot_evs[(g.min_bet, opponent.label)] = self._pot_ev(g.min_bet, opponent, g)
+            rating = self.pot_evs[(g.min_bet, opponent.label)]
 
         return rating
 
@@ -280,9 +286,8 @@ class JamesBond(Player):
             return pot_size * opponent.fv_river_cb()
         else:
             return 0
-   
+    
     def _pot_ev(self, into_pot, opponent, g):
-        print(Card.int_to_str(self.hand[0]), Card.int_to_str(self.hand[1]))
         own = into_pot / (into_pot + g.pot_size)
         range_ = opponent.get_probable_hands()
         equity = util.my_equity(self.hand, g.community_cards, range_)
@@ -403,36 +408,36 @@ class opponent():
         return self.action_history[-1][-1]
         
     def get_vpip(self):
-        return self.vpip_count / self.hands_seen
+        return self.vpip_count / max(self.hands_seen, 1)
 
     def get_call_rate(self):
         calls = self.vpip_count + self.cv_flop_cb_count + self.cv_turn_cb_count + self.cv_river_cb_count
         approx_opportunities = self.rivers_seen + self.turns_seen + self.flops_seen + self.hands_seen
-        return calls / approx_opportunities
+        return calls / max(approx_opportunities, 1)
 
     def get_three_bet(self):
-        return self.three_bet_count / self.three_bet_opp_count
+        return self.three_bet_count / max(1, self.three_bet_opp_count)
 
     def get_flop_cb(self):
-        return self.flop_cb_count / self.flops_seen
+        return self.flop_cb_count / max(1, self.flops_seen)
 
     def get_turn_cb(self):
-        return self.turn_cb_count / self.turns_seen
+        return self.turn_cb_count / max(1, self.turns_seen)
 
     def get_probable_hands(self):
         return self.probable_hands[self.label]
 
     def fv_three_bet(self):
-        return self.fv_three_bet_count / self.three_bet_opp_count
+        return self.fv_three_bet_count / max(1, self.three_bet_opp_count)
 
     def fv_flop_cb(self):
-        return self.fv_flop_cb_count / self.flops_seen
+        return self.fv_flop_cb_count / max(1, self.flops_seen)
 
     def fv_turn_cb(self):
-        return self.fv_turn_cb_count / self.turns_seen
+        return self.fv_turn_cb_count / max(1, self.turns_seen)
 
     def fv_river_cb(self):
-        return self.fv_river_cb_count / self.rivers_seen
+        return self.fv_river_cb_count / max(1, self.rivers_seen)
 
     def aggression(self):
         return self.get_vpip() + self.get_3_bet() + self.get_flop_cb() + self.get_turn_cb()
