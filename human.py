@@ -7,6 +7,7 @@ class Human(Player):
 
     def __init__(self):
         self.name = input("What's your name?\n > ")
+        print()
 
     def bet(self, game_view):
         """
@@ -16,12 +17,12 @@ class Human(Player):
         g = game_view
         hole_cards = " ".join([Card.int_to_pretty_str(card) for card in game_view.hole_cards])
         community_cards = " ".join([Card.int_to_pretty_str(card) for card in game_view.community_cards])
-        print('\nAction to you', self.name)
-        print('You have', g.my_chips, 'chips.')
-        if community_cards:
-            print('Community cards are:', community_cards)
-        print('Your cards are:', hole_cards)
-        prompt = "It's {0} to stay in and minimum raise is {1}.\nWhat would you like to do?\n > ".format(g.min_bet if g.min_bet > 0 else 'free', g.minimum_raise)
+        print('\n    Action to you', self.name)
+        print('    You have', g.my_chips, 'chips.')
+        # if community_cards:
+        #     print('    Community cards are:', community_cards)
+        print('    Your cards are:', hole_cards)
+        prompt = "    It's {0} to stay in and minimum raise is {1}.\n    What would you like to do?\n     > ".format(g.min_bet if g.min_bet > 0 else 'free', g.minimum_raise)
         while True:
             n = input(prompt).split(' ')
             print()
@@ -37,7 +38,7 @@ class Human(Player):
                 if g.min_bet == 0:
                     return 0
                 else:
-                    print("You can't check. You must fold or bet at least", min(g.my_chips, g.min_bet))
+                    print("    You can't check. You must fold or bet at least", min(g.my_chips, g.min_bet))
             if action == 'call':
                 return min(g.min_bet, g.my_chips)
             if action in ('raise', 'bet'):
@@ -46,27 +47,27 @@ class Human(Player):
                 try:
                     amount = int(amount)
                 except:
-                    print("You must bet an integer number of chips.")
+                    print("    You must bet an integer number of chips.")
                     continue
 
                 if action == 'raise':
                     amount += g.min_bet
 
                 if amount < g.min_bet and amount < g.my_chips:
-                    print("You must bet at least", min(g.my_chips, g.min_bet))
+                    print("    You must bet at least", min(g.my_chips, g.min_bet))
                     continue
                 if amount > g.min_bet and amount < (g.min_bet + g.minimum_raise) and amount < g.my_chips:
-                    print("You must raise by at least", g.minimum_raise)
+                    print("    You must raise by at least", g.minimum_raise)
                     continue
                 if amount > g.my_chips:
-                    print("You don't have that many chips.")
+                    print("    You don't have that many chips.")
                     continue
                 return int(amount)
             if action == 'all':
                 return g.my_chips
             if action in ('quit', 'exit'):
                 sys.exit()
-            print("I don't understand. Try again.")
+            print("    I don't understand. Try again.")
 
     def on_bet(self, player_name, action, amount, game_view):
         """

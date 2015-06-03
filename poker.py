@@ -51,13 +51,12 @@ class Game:
         for player in self.players:
             player.on_new_game([p.name for p in self.players])
 
-        log("New game created with the following players:\n ",
-              ', '.join([player.name for player in players]), "\n")
+        log("New game created with the following players:\n   ", ", ".join([player.name for player in players]), "\n")
 
     def play(self):
         """Simulate an entire game of poker, playing hands until only one player has any chips left."""
 
-        log("Game start")
+        log2("Game start")
         while len(self.players) != 1:
             self.reset_table()
             self.play_hand()
@@ -74,15 +73,15 @@ class Game:
         self.pots[0] += self.odd_chips
         self.folded_players = set()
         self.money_for_pot = {player: 0 for player in self.players}
+        self.money_in_pot = {player: 0 for player in self.players}
         self.community_cards = []
         self.deck = Deck()
 
     def play_hand(self):
         """Plays one hand of the game."""
 
-        log("New Hand")
+        log("============== New Hand ==============")
         self.deal()
-        log()
         for player in self.players:
             player.on_new_hand(GameView(self, player))
         for i in (3, 1, 1, 0):  # flop, turn, river reveal number
@@ -138,13 +137,13 @@ class Game:
 
     def round_of_betting(self, first_round=False):
         """Ask for bets from each player."""
-        log("New Round Of Betting")
-        log(Game.print_divider)
+        log("-------- New Round Of Betting --------")
+        if self.community_cards:
+            log('Community Cards:', " ".join([Card.int_to_pretty_str(card) for card in self.community_cards]), "\n")
 
         for player in self.players:
             player.on_new_round(GameView(self, player))
-        log("Betting Order is:", ", ".join(
-                    [player.name for player in self.players if player not in self.folded_players]))
+        log("Betting Order is:", ", ".join([player.name for player in self.players if player not in self.folded_players]))
 
         if first_round:
             self.antes()
@@ -157,7 +156,7 @@ class Game:
             largest_bet = 0
             last_aggressor = None
         minimum_raise = self.big_blind
-
+        
         for player in cycle(self.players):
             if first_round and largest_bet == self.big_blind and player is self.players[-1]:
                 last_aggressor = self.players[2 % len(self.players)]
@@ -171,7 +170,6 @@ class Game:
 
             amount_to_stay_in = largest_bet - self.money_for_pot[player]
             bet = player.bet(GameView(self, player, amount_to_stay_in, minimum_raise))
-            log()
             # Detect folding
             if bet is None:
                 # notify other players
@@ -179,7 +177,8 @@ class Game:
                     if p is not player:
                         p.on_bet(player.name, "fold", None, GameView(self, player))
                 self.folded_players.add(player)
-                log(player.name, 'has folded with', self.chips[player], 'chips left.')
+                log(player.name, 'folds with', self.chips[player], 'chips left.')
+                log(player.name, 'folds with', self.chips[player], 'chips left.')
                 continue  # go to next player
             
             bet = min(self.chips[player], bet)  # Auto All-in is just much cleaner
@@ -216,8 +215,10 @@ class Game:
 
         # put all bets in pot
         for player in self.players:
-            self.pots[0] += self.money_for_pot[player]
+            money = self.money_for_pot[player]
             self.money_for_pot[player] = 0
+            self.pots[0] += money
+            self.money_in_pot[player] += money
 
         if first_round:
             if len(self.players) > 2:
@@ -250,6 +251,7 @@ class Game:
             self.chips[BB] -= self.big_blind
         log(LB.name, 'posts little blind of', self.money_for_pot[LB])
         log(BB.name, 'posts big blind of', self.money_for_pot[BB])
+        log()
 
     def deal(self):
         """Deals 2 random cards to each player"""
@@ -280,34 +282,60 @@ class Game:
         revealed = [self.deck.draw() for i in range(n_cards)]
         self.community_cards.extend(revealed)
         log2('Revealed', " ".join([Card.int_to_pretty_str(card) for card in self.community_cards]))
-        log('Community Cards:', " ".join([Card.int_to_pretty_str(card) for card in self.community_cards]), "\n")
+        log2('Community Cards:', " ".join([Card.int_to_pretty_str(card) for card in self.community_cards]), "\n")
 
     def payout(self, players_in_pot, pot, pot_name='main pot'):
-        """Find winner and give out pot."""
+        """Find winners and give out pot."""
         log("Resulting Hands:")
-        best_players = []
-        best_score = 999999999 # smaller numbers good. This is worse than the worst score.
+        players_in_pot = list(players_in_pot) # copy for safety
+        scores = {}
         longest_name_length = max([len(player.name) for player in players_in_pot])
+        # print stuff
         for player in players_in_pot:
-
             score = evaluator.evaluate(self.community_cards, self.hole_cards[player])
-            if score < best_score:
-                best_players = [player]
-                best_score = score
-            elif score == best_score:
-                best_players.append(player)
-
+            scores[player] = score
             hole_cards = " ".join([Card.int_to_pretty_str(card) for card in self.hole_cards[player]])
             rank = evaluator.class_to_string(evaluator.get_rank_class(score))
             log('   ', player.name.rjust(longest_name_length), hole_cards, rank)
 
-        reward = pot // len(best_players)
-        self.odd_chips = pot % len(best_players)
-        for player in best_players:
-            self.chips[player] += reward
+        pot_number = 0
+        while pot > 0: # this might need to change
+            pot_number += 1
+            winners = []
+            best_score = 999999999 # smaller numbers good. This is worse than the worst score.
+            
+            # Find the winners of this pot
+            for player in players_in_pot:
+                score = scores[player]
+                if score < best_score:
+                    winners = [player]
+                    best_score = score
+                elif score == best_score:
+                    winners.append(player)
+                
+            # Find the size of this pot
+            winner_money_in_pot = min([self.money_in_pot[winner] for winner in winners]) # = 25
+            subpot = 0
+            for player in self.players:
+                money_from_player = min(winner_money_in_pot, self.money_in_pot[player])
+                self.money_in_pot[player] -= money_from_player
+                subpot += money_from_player
 
-        log(" and ".join([player.name for player in best_players]), 'won', pot_name, 'of', pot, 'chips.')
+            reward = subpot // len(winners)
+            pot -= subpot
+            extra_chips = subpot - reward * len(winners)
+            for winner in winners:
+                self.chips[winner] += reward
+                # split up the odd chips
+                if extra_chips > 0:
+                    extra_chips -= 1
+                    self.chips[winner] += 1
 
+            # remove people from pot
+            players_in_pot = list(filter(lambda player: self.money_in_pot[player] > 0, players_in_pot))
+
+            log(" and ".join([winner.name for winner in winners]), 'won pot number', pot_number, 'worth', reward, 'chips.')
+        
     def rotate_players(self):
         """Change the list of players so the """
         self.players.append(self.players.pop(0))
