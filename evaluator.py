@@ -47,7 +47,7 @@ class Evaluator(object):
         space using a hash table and condensing some of the calculations. 
         """
         # if flush
-        if cards[0] & cards[1] & cards[2] & cards[3] & cards[4] & 0xF000:
+        if cards[0] & cards[1] & cards[2] & cards[3] & cards[4] & 0xf000:
             handOR = (cards[0] | cards[1] | cards[2] | cards[3] | cards[4]) >> 16
             prime = Card.prime_product_from_rankbits(handOR)
             return self.table.flush_lookup[prime]
