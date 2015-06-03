@@ -334,10 +334,9 @@ class GameView:
         self.big_blind = game_state.big_blind
 
         # John's variables (in interest of finishing)
-        minr = 0 if minimum_raise is None else minimum_raise
         self.pot_size = game_state.pots[0]
         self.min_bet = 0 if amount_to_stay_in is None else amount_to_stay_in
-        self.min_raise = minr + self.min_bet
+        self.min_raise = 0 if minimum_raise is None else minimum_raise
         self.players_in_round = self.players_in_hand
 
 if __name__ == '__main__':
@@ -347,13 +346,14 @@ if __name__ == '__main__':
     from folder import Folder
     from bluffer import Bluffer
     from human import Human
+    from james_bond import JamesBond
     players = [
             Human(),
             John('John'), 
             CallingStation('Arnold'), 
             Simon(),
             CallingStation('Theresa'), 
-            # CallingStation('Francis'), 
+            JamesBond(), 
             # CallingStation('Steve'), 
             # CallingStation('Fred'), 
             # CallingStation('George'), 
