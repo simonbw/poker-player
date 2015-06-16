@@ -48,7 +48,7 @@ class Human(Player):
                     return 0
                 else:
                     print("    You can't check. You must fold or bet at least", min(g.my_chips, g.min_bet))
-            if action == 'call':
+            if action in ('call', 'stay', 'hold'):
                 return min(g.min_bet, g.my_chips)
             if action in ('raise', 'bet'):
                 if amount == 'all':
