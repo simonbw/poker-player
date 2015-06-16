@@ -27,18 +27,27 @@ class Game:
     """Describes one game of No-Limit Texas Hold'em as a single table tournament"""
 
     print_divider = '======================'
+    STARTING_CHIPS = 200
+    BIG_BLIND = 2
+    LITTLE_BLIND = 1
 
     def __init__(self, players):
         """"""
 
         # Set up the table
+
+        # Players who haven't busted
         self.players = players
+
+        # Players who have lost all their chips
         self.busted_players = []
+
+        # Players who have folded the current hand
         self.folded_players = set()
-        self.big_blind = 2
-        self.little_blind = 1
-        self.pots = [0]
-        self.odd_chips = 0
+
+        self.big_blind = Game.BIG_BLIND
+        self.little_blind = Game.LITTLE_BLIND
+        self.pot = 0
         self.hole_cards = {}
         self.deck = Deck()
         self.hands_played = 0
@@ -46,7 +55,7 @@ class Game:
         # Starting chips for each player
         self.chips = {}
         for player in players:
-            self.chips[player] = 300
+            self.chips[player] = Game.STARTING_CHIPS
 
         for player in self.players:
             player.on_new_game([p.name for p in self.players])
@@ -69,8 +78,7 @@ class Game:
     def reset_table(self):
         """Resets the table for a new hand"""
 
-        self.pots[0] = 0
-        self.pots[0] += self.odd_chips
+        self.pot = 0
         self.folded_players = set()
         self.money_for_pot = {player: 0 for player in self.players}
         self.money_in_pot = {player: 0 for player in self.players}
@@ -91,12 +99,12 @@ class Game:
             self.reveal(i)
             if len(self.players) == len(self.folded_players) + 1:
                 break  # go to payout
+        self.reveal(5 - len(self.community_cards))
         remaining_players = set(self.players) - self.folded_players
-        pot = self.pots[0]
-        self.payout(remaining_players, pot)
+        self.payout(remaining_players, self.pot)
         for player in self.players:
             names = " and ".join(p.name for p in remaining_players)
-            player.on_hand_end(names, pot, GameView(self, player))
+            player.on_hand_end(names, self.pot, GameView(self, player))
         self.rotate_players()
         log()
 
@@ -141,10 +149,6 @@ class Game:
         if self.community_cards:
             log('Community Cards:', " ".join([Card.int_to_pretty_str(card) for card in self.community_cards]), "\n")
 
-        for player in self.players:
-            player.on_new_round(GameView(self, player))
-        log("Betting Order is:", ", ".join([player.name for player in self.players if player not in self.folded_players]))
-
         if first_round:
             self.antes()
             largest_bet = self.big_blind
@@ -156,7 +160,11 @@ class Game:
             largest_bet = 0
             last_aggressor = None
         minimum_raise = self.big_blind
-        
+
+        for player in self.players:
+            player.on_new_round(GameView(self, player))
+        log("Betting Order is:", ", ".join([player.name for player in self.players if player not in self.folded_players]))
+
         for player in cycle(self.players):
             if first_round and largest_bet == self.big_blind and player is self.players[-1]:
                 last_aggressor = self.players[2 % len(self.players)]
@@ -170,6 +178,7 @@ class Game:
 
             amount_to_stay_in = largest_bet - self.money_for_pot[player]
             bet = player.bet(GameView(self, player, amount_to_stay_in, minimum_raise))
+
             # Detect folding
             if bet is None:
                 # notify other players
@@ -182,7 +191,9 @@ class Game:
             
             bet = min(self.chips[player], bet)  # Auto All-in is just much cleaner
             self.validate_bet_amount(player, bet, amount_to_stay_in, minimum_raise)
+
             # Adjust chip totals
+            self.pot += bet
             self.money_for_pot[player] += bet
             self.chips[player] -= bet
 
@@ -212,18 +223,16 @@ class Game:
                     if p is not player:
                         p.on_bet(player.name, "call", bet, GameView(self, player))
 
-        # put all bets in pot
+        # record total money each player has in the pot
         for player in self.players:
-            money = self.money_for_pot[player]
+            self.money_in_pot[player] += self.money_for_pot[player]
             self.money_for_pot[player] = 0
-            self.pots[0] += money
-            self.money_in_pot[player] += money
 
         if first_round:
             if len(self.players) > 2:
                 self.players.insert(0, self.players.pop())
             self.players.insert(0, self.players.pop())
-        log(self.pots[0], 'chips in the pot.')
+        log(self.pot, 'chips in the pot.')
         # log(Game.print_divider)
 
     def antes(self):
@@ -237,6 +246,7 @@ class Game:
             BB = self.players[0]
         if self.chips[LB] < self.little_blind:
             self.money_for_pot[LB] = self.chips[LB]
+            self.pot += self.money_for_pot[LB]
             self.chips[LB] = 0
         else:
             self.money_for_pot[LB] += self.little_blind
@@ -248,6 +258,7 @@ class Game:
         else:
             self.money_for_pot[BB] += self.big_blind
             self.chips[BB] -= self.big_blind
+        self.pot += self.money_for_pot[LB] + self.money_for_pot[BB]
         log(LB.name, 'posts little blind of', self.money_for_pot[LB])
         log(BB.name, 'posts big blind of', self.money_for_pot[BB])
         log()
@@ -271,7 +282,7 @@ class Game:
                 raise Exception("Bad Bet: That's more than you have!\nYou tried to bet:", bet)
             # Didn't raise enough
             if amount_to_stay_in < bet < amount_to_stay_in + minimum_raise:
-                raise Exception("Bad Bet: Minimum raise is", minimum_raise, "Tried to bet", bet)
+                raise Exception("Bad Bet: Minimum raise is", minimum_raise, player.name, "tried to bet", bet)
 
     def reveal(self, n_cards):
         """Reveals a n_cards from the deck and place them in the common cards."""
@@ -283,8 +294,9 @@ class Game:
         log2('Revealed', " ".join([Card.int_to_pretty_str(card) for card in self.community_cards]))
         log2('Community Cards:', " ".join([Card.int_to_pretty_str(card) for card in self.community_cards]), "\n")
 
-    def payout(self, players_in_pot, pot, pot_name='main pot'):
+    def payout(self, players_in_pot, pot_size, pot_name='main pot'):
         """Find winners and give out pot."""
+        log("Final community cards: ", " ".join([Card.int_to_pretty_str(card) for card in self.community_cards]))
         log("Resulting Hands:")
         players_in_pot = list(players_in_pot) # copy for safety
         scores = {}
@@ -298,7 +310,7 @@ class Game:
             log('   ', player.name.rjust(longest_name_length), hole_cards, rank)
 
         pot_number = 0
-        while pot > 0: # this might need to change
+        while pot_size > 0: # this might need to change
             pot_number += 1
             winners = []
             best_score = 999999999 # smaller numbers good. This is worse than the worst score.
@@ -311,7 +323,15 @@ class Game:
                     best_score = score
                 elif score == best_score:
                     winners.append(player)
-                
+            
+            if not winners:
+                for pair in self.money_in_pot.items():
+                    player = pair[0]
+                    chips_in_pot = pair[1]
+                    self.chips[player] += chips_in_pot
+                    self.money_in_pot[player] = 0
+                break
+
             # Find the size of this pot
             winner_money_in_pot = min([self.money_in_pot[winner] for winner in winners]) # = 25
             subpot = 0
@@ -321,7 +341,7 @@ class Game:
                 subpot += money_from_player
 
             reward = subpot // len(winners)
-            pot -= subpot
+            pot_size -= subpot
             extra_chips = subpot - reward * len(winners)
             for winner in winners:
                 self.chips[winner] += reward
@@ -344,24 +364,23 @@ class Game:
 class GameView:
     """The data that is passed to an agent."""
     def __init__(self, game_state, player, amount_to_stay_in=None, minimum_raise=None):
+        # Represented as integers as defined by card.py
         self.hole_cards = game_state.hole_cards[player][:]
-
         self.community_cards = tuple(game_state.community_cards)
-        self.pots = game_state.pots
+        
+        # Chips of the player
         self.my_chips = game_state.chips[player]
-        self.amount_to_stay_in = amount_to_stay_in
-        self.minimum_bet = amount_to_stay_in
+
+        # Chips of the player's opponents player.name -> player's chips
         self.chips = {player.name: game_state.chips[player] for player in list(game_state.chips)}
+        self.chips.pop(player.name, None)
+
         self.players = [player.name for player in game_state.players]
-        players_in_hand = list(set(game_state.players) - game_state.folded_players)
-        self.players_in_hand = [player.name for player in players_in_hand]
+        self.players_in_hand = [player.name for player in list(set(game_state.players) - game_state.folded_players)]
         self.folded_players = [player.name for player in game_state.folded_players]
         self.money_for_pot = {player.name: game_state.money_for_pot[player] for player in list(game_state.money_for_pot.keys())}
-        self.minimum_raise = minimum_raise
         self.big_blind = game_state.big_blind
-
-        # John's variables (in interest of finishing)
-        self.pot_size = game_state.pots[0]
+        self.pot_size = game_state.pot
         self.min_bet = 0 if amount_to_stay_in is None else amount_to_stay_in
         self.min_raise = 0 if minimum_raise is None else minimum_raise
         self.players_in_round = self.players_in_hand
@@ -375,21 +394,21 @@ if __name__ == '__main__':
     from human import Human
     from james_bond import JamesBond
     players = [
-            Human(), 
+            #Human(), 
             CallingStation('Arnold'),
-            CallingStation('Theresa'), 
-            JamesBond(), 
+            #CallingStation('Theresa'), 
+            #JamesBond(), 
             # CallingStation('Steve'), 
             # CallingStation('Fred'), 
             # CallingStation('George'), 
             # CallingStation('Susy'), 
-            # Bluffer('Kate')
+            Bluffer('Kate')
         ]
-    Game(players).play()
-    # wins = {}
-    # for i in range(50):
-    #     game = Game(players[:])
-    #     winner = game.play()
-    #     wins[winner.name] = wins.get(winner.name, 0) + 1 
-    #     print(winner.name, "won")
-    # print(wins)
+    #Game(players).play()
+    wins = {}
+    for i in range(2):
+        game = Game(players[:])
+        winner = game.play()
+        wins[winner.name] = wins.get(winner.name, 0) + 1 
+        print(winner.name, "won")
+    print(wins)

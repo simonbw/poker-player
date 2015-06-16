@@ -15,14 +15,23 @@ class Human(Player):
         Returning None folds.
         """
         g = game_view
-        hole_cards = " ".join([Card.int_to_pretty_str(card) for card in game_view.hole_cards])
-        community_cards = " ".join([Card.int_to_pretty_str(card) for card in game_view.community_cards])
+        hole_cards = " ".join([Card.int_to_pretty_str(card) for card in g.hole_cards])
+        community_cards = " ".join([Card.int_to_pretty_str(card) for card in g.community_cards])
         print('\n    Action to you', self.name)
         print('    You have', g.my_chips, 'chips.')
-        # if community_cards:
-        #     print('    Community cards are:', community_cards)
+        print('    There are', g.pot_size, 'chips in the pot.')
+        print('    Other players chips:')
+        opposing_chip_stacks = " -- ".join([str(chips[0]) + ':' + str(chips[1]) for chips in g.chips.items()])
+        print('        ', opposing_chip_stacks)
+
+        if community_cards:
+            print('    Community cards are:', community_cards)
         print('    Your cards are:', hole_cards)
-        prompt = "    It's {0} to stay in and minimum raise is {1}.\n    What would you like to do?\n     > ".format(g.min_bet if g.min_bet > 0 else 'free', g.minimum_raise)
+
+        if g.my_chips == 0:
+            print("    You're all in!")
+            return min(g.min_bet, g.my_chips)
+        prompt = "    It's {0} to stay in and minimum raise is {1}.\n    What would you like to do?\n     > ".format(g.min_bet if g.min_bet > 0 else 'free', g.min_raise)
         while True:
             n = input(prompt).split(' ')
             print()
@@ -56,8 +65,8 @@ class Human(Player):
                 if amount < g.min_bet and amount < g.my_chips:
                     print("    You must bet at least", min(g.my_chips, g.min_bet))
                     continue
-                if amount > g.min_bet and amount < (g.min_bet + g.minimum_raise) and amount < g.my_chips:
-                    print("    You must raise by at least", g.minimum_raise)
+                if amount > g.min_bet and amount < (g.min_bet + g.min_raise) and amount < g.my_chips:
+                    print("    You must raise by at least", g.min_raise)
                     continue
                 if amount > g.my_chips:
                     print("    You don't have that many chips.")

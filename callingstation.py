@@ -7,7 +7,8 @@ class CallingStation(Player):
         evaluator = Evaluator()
 
     def bet(self, game_view):
-        return min(game_view.amount_to_stay_in, game_view.my_chips)
+        #print('my amount to stay in is:', game_view.amount_to_stay_in)
+        return min(game_view.min_bet, game_view.my_chips)
 
     def update(self, game_view):
     	return
