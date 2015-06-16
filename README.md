@@ -2,6 +2,13 @@
 Play a game of poker with some AI.
 Written in Python 3.4
 
+Classes for use by your own ai:
+- card.py
+- deck.py
+- lookup.py
+- player.py
+- evaluator.py
+
 ## Usage
 Run poker.py from command line.
 
